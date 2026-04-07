@@ -282,7 +282,7 @@ const Kyc = ({language,country}) => {
       
       // Fetch company info
       const companyResponse = await fetch(
-        `https://minexxapi-drc-clone-p7n5ing2cq-uc.a.run.app/companies/country/${id}?country=${encodeURIComponent(normalizedCountry)}`,
+        `https://minexxapi-togo-clone-p7n5ing2cq-uc.a.run.app/companies/country/${id}?country=${encodeURIComponent(normalizedCountry)}`,
         {
           method: 'GET',
           headers: {
@@ -300,7 +300,7 @@ const Kyc = ({language,country}) => {
 
       // Fetch documents
       const companyDocResponse = await fetch(
-        `https://minexxapi-drc-clone-p7n5ing2cq-uc.a.run.app/documentsnoAuth/${id}?country=${encodeURIComponent(normalizedCountry)}`,
+        `https://minexxapi-togo-clone-p7n5ing2cq-uc.a.run.app/documentsnoAuth/${id}?country=${encodeURIComponent(normalizedCountry)}`,
         {
           method: 'GET',
           headers: {
@@ -324,11 +324,11 @@ const Kyc = ({language,country}) => {
 
       // Fetch shareholders
       const shareholderResponse = await fetch(
-        `https://minexxapi-drc-clone-p7n5ing2cq-uc.a.run.app/shareholdersnoAuth/${id}?country=${encodeURIComponent(normalizedCountry)}`,
+        `https://minexxapi-togo-clone-p7n5ing2cq-uc.a.run.app/shareholdersnoAuth/${id}?country=${encodeURIComponent(normalizedCountry)}`,
         {
           method: 'GET',
           headers: {
-            'x-platform': platform
+            'x-platform': platform 
           }
         }
       );
@@ -341,7 +341,7 @@ const Kyc = ({language,country}) => {
 
       // Fetch beneficial owners
       const beneficialResponse = await fetch(
-        `https://minexxapi-drc-clone-p7n5ing2cq-uc.a.run.app/ownersnoAuth/${id}?country=${encodeURIComponent(normalizedCountry)}`,
+        `https://minexxapi-togo-clone-p7n5ing2cq-uc.a.run.app/ownersnoAuth/${id}?country=${encodeURIComponent(normalizedCountry)}`,
         {
           method: 'GET',
           headers: {
