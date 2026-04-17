@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Tab, Nav, ListGroup, ProgressBar, Container, Row, Col, Modal, Button } from 'react-bootstrap';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axiosInstance from '../../../services/AxiosInstance';
 import { baseURL_ } from '../../../config'
@@ -9,6 +9,8 @@ import { CheckCircle, XCircle, FileText, Info, X, Check } from 'lucide-react';
 
 const Kyc = ({language,country}) => {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState('basic');
   const [company, setCompany] = useState(null);
   const [progress, setProgress] = useState(0);
   const [totalDocuments, setTotalDocuments] = useState(0);
@@ -267,6 +269,14 @@ const Kyc = ({language,country}) => {
     );
   };
 
+  // Handle tab parameter from URL query string
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['basic', 'documents', 'shareholders', 'beneficialOwners'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     if (id) { 
       fetchCompanyData(id);
@@ -328,7 +338,7 @@ const Kyc = ({language,country}) => {
         {
           method: 'GET',
           headers: {
-            'x-platform': platform 
+            'x-platform': platform
           }
         }
       );
@@ -384,7 +394,7 @@ const Kyc = ({language,country}) => {
         </ol>
       </div>
 
-      <Tab.Container defaultActiveKey="basic">
+      <Tab.Container activeKey={activeTab} onSelect={(k) => setActiveTab(k)}>
         <div className='col-xl-12'>
           <div className="card">
             <div className="card-body px-4 py-3 py-md-2">

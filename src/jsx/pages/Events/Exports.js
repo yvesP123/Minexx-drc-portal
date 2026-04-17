@@ -27,7 +27,7 @@ const Exports = ({ language, country }) => {
     const user = JSON.parse(localStorage.getItem(`_authUsr`));
     const PAGE_SIZE = 20;
     const [currentPage, setCurrentPage] = useState(1);
-
+    // const baseURL_ = 'https://minexxapi-drc-clone-p7n5ing2cq-uc.a.run.app/';
     // Memoized translations function to avoid recreating on every render
     const t = useCallback((key) => {
         if (!translations[language]) {

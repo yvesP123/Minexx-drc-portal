@@ -28,6 +28,8 @@ const ticketData = [
     { number: "07", emplid: "Emp-3052", count: '4' },
 ];
 
+const imageColumns = new Set(['Image', 'Images', 'Receipt', 'Seller ID Card', 'Miners_Images']);
+
 const Reports = ({ language, country }) => {
 
     const { type } = useParams()
@@ -67,12 +69,14 @@ const Reports = ({ language, country }) => {
         Cassiterite: [],
         Coltan: [],
         Wolframite: [],
+        Gold: [],
         totalVolume: 0
     });
     const [filteredTrendData, setFilteredTrendData] = useState({
         Cassiterite: [],
         Coltan: [],
         Wolframite: [],
+        Gold: [],
         totalVolume: 0
     });
     const [filteredGradeData, setFilteredGradeData] = useState({
@@ -80,6 +84,7 @@ const Reports = ({ language, country }) => {
         Coltan: new Array(12).fill(0),
         Wolframite: new Array(12).fill(0),
         Copper: new Array(12).fill(0),
+        Gold: new Array(12).fill(0),
         totalGrade: 0
     });
 
@@ -87,6 +92,7 @@ const Reports = ({ language, country }) => {
         Cassiterite: [],
         Coltan: [],
         Wolframite: [],
+        Gold: [],
         totalGrade: 0
     });
     const [yearFilterApplied, setYearFilterApplied] = useState(false);
@@ -340,6 +346,21 @@ const Reports = ({ language, country }) => {
             november: 0,
             december: 0,
 
+        },
+        gold: {
+            january: 0,
+            february: 0,
+            march: 0,
+            april: 0,
+            may: 0,
+            june: 0,
+            july: 0,
+            august: 0,
+            september: 0,
+            october: 0,
+            november: 0,
+            december: 0,
+
         }
 
 
@@ -472,6 +493,11 @@ const Reports = ({ language, country }) => {
             daily: 0,
             weekly: 0,
             monthly: 0,
+        },
+        gold: {
+            daily: 0,
+            weekly: 0,
+            monthly: 0,
         }
     })
     const sort = 20;
@@ -551,6 +577,30 @@ const Reports = ({ language, country }) => {
         })
 
     }
+    const getReportEntityName = (item) => {
+        if (!item) return '';
+
+        return item.suppliername
+            || item.supplier
+            || item.companyName
+            || item.company_name
+            || item.CompanyName
+            || item.name
+            || item.company?.name
+            || '';
+    };
+
+    const getReportEntityId = (item) => {
+        if (!item) return null;
+
+        return item.supplierId
+            || item.id
+            || item.companyId
+            || item.company_id
+            || item.company?.id
+            || null;
+    };
+
     //Select the Supplier Trand grade supplier
     const changesupplierGradetrends = (e) => {
         if (e.target.value === t("SelectCompanyShort")) {
@@ -561,6 +611,7 @@ const Reports = ({ language, country }) => {
                 Cassiterite: [],
                 Coltan: [],
                 Wolframite: [],
+                Gold: [],
                 totalGrade: 0
             });
             return;
@@ -569,6 +620,12 @@ const Reports = ({ language, country }) => {
         try {
             // Parse the JSON string back to an object
             const selectedSupplier = JSON.parse(e.target.value);
+            const supplierId = getReportEntityId(selectedSupplier);
+
+            if (!supplierId) {
+                toast.warn("Unable to identify the selected company.");
+                return;
+            }
 
             // Set the supplier trend with the parsed object
             setsuppliergradetrends(selectedSupplier);
@@ -578,7 +635,7 @@ const Reports = ({ language, country }) => {
             });
 
             // Fetch data for the selected supplier
-            fetchSupplierGradeData(selectedSupplier.supplierId);
+            fetchSupplierGradeData(supplierId);
         } catch (error) {
             console.error("Error parsing supplier data:", error);
         }
@@ -588,6 +645,15 @@ const Reports = ({ language, country }) => {
         if (e.target.value === t("SelectCompanyShort")) {
             // Clear selection
             setsuppliertrend(null);
+            // Reset trend data with Gold included
+            setDefaultTrendData({
+                Cassiterite: [],
+                Coltan: [],
+                Wolframite: [],
+                Gold: [],
+                totalVolume: 0
+            });
+            setYearFilterApplied(false);
             return;
         }
 
@@ -737,6 +803,7 @@ const Reports = ({ language, country }) => {
                     Cassiterite: response.data.trendgraph.Cassiterite || [],
                     Coltan: response.data.trendgraph.Coltan || [],
                     Wolframite: response.data.trendgraph.Wolframite || [],
+                    Gold: response.data.trendgraph.Gold || [],
                     totalVolume: response.data.trendgraph.totalVolume
                 });
                 console.log("Total Volume By default", response.data.trendgraph.totalVolume)
@@ -749,7 +816,7 @@ const Reports = ({ language, country }) => {
     // Updated fetchSupplierGradeData function
     const fetchSupplierGradeData = async (supplierId) => {
         try {
-            const response = await axiosInstance.get(`/report/suppliertrends/${supplierId}`, {
+            const response = await axiosInstance.get(`/report/suppliergradegraph/${supplierId}`, {
                 params: { country: normalizedCountry(country) }
             });
 
@@ -777,6 +844,7 @@ const Reports = ({ language, country }) => {
             Coltan: data.Coltan || new Array(12).fill(0),
             Wolframite: data.Wolframite || new Array(12).fill(0),
             Copper: data["Copper-cobalt"] || new Array(12).fill(0),
+            Gold: data.Gold || new Array(12).fill(0),
             totalGrade: data.totalGrade || 0
         };
 
@@ -998,6 +1066,12 @@ const Reports = ({ language, country }) => {
                         copper: {
                             ...prevDeliveries.copper,
                             ...response.data.copper.company[normalizedCountry]
+                        },
+                        gold: {
+                            ...prevDeliveries.gold,
+                            ...(response.data.gold?.company?.[normalizedCountry]
+                                || response.data.cassiterite?.company?.[normalizedCountry]
+                                || {})
                         }
 
 
@@ -1277,10 +1351,17 @@ const Reports = ({ language, country }) => {
 
         const formData = new FormData(e.target);
         const year = formData.get('year');
+        const supplierId = getReportEntityId(suppliertrend);
+
+        if (!supplierId) {
+            toast.warn("Please select a valid company.");
+            setLoading(false);
+            return;
+        }
 
         try {
             const response = await axiosInstance.get(
-                `/report/trendgraphbyyear/${suppliertrend.id}`,
+                `/report/trendgraphbyyear/${supplierId}`,
                 {
                     params: {
                         country: normalizedCountry(country),
@@ -1294,6 +1375,7 @@ const Reports = ({ language, country }) => {
                     Cassiterite: response.data.trendgraphbyyear.Cassiterite || [],
                     Coltan: response.data.trendgraphbyyear.Coltan || [],
                     Wolframite: response.data.trendgraphbyyear.Wolframite || [],
+                    Gold: response.data.trendgraphbyyear.Gold || [],
                     totalVolume: response.data.trendgraphbyyear.totalVolume
                 });
                 toast.success(`Data for ${year} loaded successfully!`);
@@ -1313,10 +1395,17 @@ const Reports = ({ language, country }) => {
 
         const formData = new FormData(e.target);
         const year = formData.get('year');
+        const supplierId = getReportEntityId(suppliergradetrends);
+
+        if (!supplierId) {
+            toast.warn("Please select a valid company.");
+            setLoading(false);
+            return;
+        }
 
         try {
             const response = await axiosInstance.get(
-                `/report/suppliertrends/${suppliergradetrends.supplierId}`,
+                `/report/suppliergraderangegraph/${supplierId}`,
                 {
                     params: {
                         country: normalizedCountry(country),
@@ -1333,6 +1422,7 @@ const Reports = ({ language, country }) => {
                     Coltan: data.Coltan || new Array(12).fill(0),
                     Wolframite: data.Wolframite || new Array(12).fill(0),
                     Copper: data["Copper-cobalt"] || new Array(12).fill(0),
+                    Gold: data.Gold || new Array(12).fill(0),
                     totalGrade: data.totalGrade || 0
                 });
                 toast.success(`Grade data for ${year} loaded successfully!`);
@@ -1362,10 +1452,7 @@ const Reports = ({ language, country }) => {
     useEffect(() => {
         setData(document.querySelectorAll("#report_wrapper tbody tr"));
         changeTitle(`${t('Report')} | Minexx`)
-        // Skip loadReport for deliverygradetrends as it has its own data loading
-        if (type !== 'suppliertrends') {
-            loadReport();
-        }
+        loadReport();
         console.log('Country:', country);
         loadMinerals();
         loadSuppliers();
@@ -1387,7 +1474,10 @@ const Reports = ({ language, country }) => {
             loadKycSummary();
         }
         if (suppliertrend && !yearFilterApplied) {
-            fetchDefaultTrendData(suppliertrend.id);
+            const supplierId = getReportEntityId(suppliertrend);
+            if (supplierId) {
+                fetchDefaultTrendData(supplierId);
+            }
         }
     }, [type, company, language, country, mineral, suppliertrend]);
 
@@ -1490,7 +1580,10 @@ const Reports = ({ language, country }) => {
                     cassiterite: response.data.purchases?.cassiterite?.company?.[normalizedCountry]?.monthly || {},
                     coltan: response.data.purchases?.coltan?.company?.[normalizedCountry]?.monthly || {},
                     wolframite: response.data.purchases?.wolframite?.company?.[normalizedCountry]?.monthly || {},
-                    copper: response.data.purchases?.copper?.company?.[normalizedCountry]?.monthly || {}
+                    copper: response.data.purchases?.copper?.company?.[normalizedCountry]?.monthly || {},
+                    gold: response.data.purchases?.gold?.company?.[normalizedCountry]?.monthly
+                        || response.data.purchases?.cassiterite?.company?.[normalizedCountry]?.monthly
+                        || {}
                 });
 
                 //console.log('MonthlyPurchase data:', {  
@@ -1762,25 +1855,44 @@ const Reports = ({ language, country }) => {
     //const monthss = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     //Graph for Purchased
     const monthss = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const isGoldAccess = access === 'gold';
+    const purchaseCardClassName = 'col-md-4';
+    const sanitizeChartValue = (value) => {
+        const numericValue = typeof value === 'string'
+            ? Number(value.replace(/,/g, ''))
+            : Number(value);
+        return Number.isFinite(numericValue) ? numericValue : 0;
+    };
+    const getMonthlyPurchaseData = (mineralKey) =>
+        monthss.map((month) => {
+            const monthlyData = monthlypurchase?.[mineralKey] || {};
+            const rawValue = monthlyData[month] ?? monthlyData[month.toLowerCase()] ?? 0;
+            return sanitizeChartValue(rawValue);
+        });
 
-    const chartSeries_Purchase = [
-        {
-            name: 'Cassiterite',
-            data: monthss.map(month => monthlypurchase.cassiterite[month] || 0),
-        },
-        {
-            name: 'Coltan',
-            data: monthss.map(month => monthlypurchase.coltan[month] || 0),
-        },
-        {
-            name: 'Wolframite',
-            data: monthss.map(month => monthlypurchase.wolframite[month] || 0),
-        },
-        {
-            name: 'Copper',
-            data: monthss.map(month => monthlypurchase.copper[month] || 0),
-        }
-    ];
+    const chartSeries_Purchase = isGoldAccess
+        ? [{
+            name: 'Gold',
+            data: getMonthlyPurchaseData('gold'),
+        }]
+        : [
+            {
+                name: 'Cassiterite',
+                data: getMonthlyPurchaseData('cassiterite'),
+            },
+            {
+                name: 'Coltan',
+                data: getMonthlyPurchaseData('coltan'),
+            },
+            {
+                name: 'Wolframite',
+                data: getMonthlyPurchaseData('wolframite'),
+            },
+            {
+                name: 'Copper',
+                data: getMonthlyPurchaseData('copper'),
+            }
+        ];
     const chartOptions_Purchase = {
         chart: {
             type: 'bar',
@@ -1883,6 +1995,11 @@ const Reports = ({ language, country }) => {
             const monthData = data.Wolframite.find(d => d.month === month);
             return monthData ? monthData.volume : 0;
         });
+
+        const goldData = months.map(month => {
+            const monthData = data.Gold.find(d => d.month === month);
+            return monthData ? monthData.volume : 0;
+        });
         // const copperData= months.map(month => {
         //     const monthData = data.Copper.find(d => d.month === month);
         //     return monthData ? monthData.volume : 0;
@@ -1892,29 +2009,45 @@ const Reports = ({ language, country }) => {
             cassiterite: cassiteriteData,
             coltan: coltanData,
             wolframite: wolframiteData,
+            gold: goldData,
             // copper: copperData
         };
     };
 
     // Chart series for supplier trends
-    const chartSeries_Trend = [
-        {
-            name: 'Cassiterite',
-            data: filteredTrendData.Cassiterite.length > 0 ? processTrendData(filteredTrendData).cassiterite : processTrendData(defaultTrendData).cassiterite
-        },
-        {
-            name: 'Coltan',
-            data: filteredTrendData.Coltan.length > 0 ? processTrendData(filteredTrendData).coltan : processTrendData(defaultTrendData).coltan
-        },
-        {
-            name: 'Wolframite',
-            data: filteredTrendData.Wolframite.length > 0 ? processTrendData(filteredTrendData).wolframite : processTrendData(defaultTrendData).wolframite
-        },
-        // {
-        //     name: 'Copper',
-        //     data: filteredTrendData.Copper.length > 0 ? processTrendData(filteredTrendData).copper : processTrendData(defaultTrendData).copper
-        // }
-    ];
+    // Chart series for supplier trends - filtered by access level
+    const getChartSeriesTrend = () => {
+        const baseSeries = [
+            {
+                name: 'Cassiterite',
+                data: filteredTrendData.Cassiterite.length > 0 ? processTrendData(filteredTrendData).cassiterite : processTrendData(defaultTrendData).cassiterite
+            },
+            {
+                name: 'Coltan',
+                data: filteredTrendData.Coltan.length > 0 ? processTrendData(filteredTrendData).coltan : processTrendData(defaultTrendData).coltan
+            },
+            {
+                name: 'Wolframite',
+                data: filteredTrendData.Wolframite.length > 0 ? processTrendData(filteredTrendData).wolframite : processTrendData(defaultTrendData).wolframite
+            },
+        ];
+
+        const goldSeries = {
+            name: 'Gold',
+            data: filteredTrendData.Gold.length > 0 ? processTrendData(filteredTrendData).gold : processTrendData(defaultTrendData).gold
+        };
+
+        // Show only Gold for gold access level, all minerals for 3ts
+        if (access === 'gold') {
+            return [goldSeries];
+        } else if (access === '3ts') {
+            return [...baseSeries, goldSeries];
+        } else {
+            return [...baseSeries, goldSeries];
+        }
+    };
+
+    const chartSeries_Trend = getChartSeriesTrend();
 
     // Chart options for supplier trends
     const chartOptions_Trend = {
@@ -1997,6 +2130,7 @@ const Reports = ({ language, country }) => {
             height: 500,
             stacked: false,
         },
+        colors: ['#FFD700'], // Gold color for the Gold series
         plotOptions: {
             bar: {
                 horizontal: false,
@@ -2067,20 +2201,8 @@ const Reports = ({ language, country }) => {
 
     const chartSeries_Grade = [
         {
-            name: 'Cassiterite',
-            data: (filteredGradeData.Cassiterite || [])  // Keep original values
-        },
-        {
-            name: 'Coltan',
-            data: (filteredGradeData.Coltan || [])
-        },
-        {
-            name: 'Wolframite',
-            data: (filteredGradeData.Wolframite || [])
-        },
-        {
-            name: 'Copper-Cobalt',
-            data: (filteredGradeData.Copper || [])
+            name: 'Gold',
+            data: (filteredGradeData.Gold || [])
         }
     ];
     // Create helper components for the KYC summary UI
@@ -2784,159 +2906,211 @@ const Reports = ({ language, country }) => {
                             </div>
                             :
                             type === `kpis` ?
-                                <KPIs country={country} language={language} />
+                                <KPIs country={country} language={language} access={access} />
                                 :
                                 type === `stockmovement` ?
                                     <Stockmovement country={country} language={language} access={access} />
                                     :
                                     type === `deliveries` ?
                                         <div className='row'>
-                                            <div className="col-md-4">
-                                                <div className="card">
-                                                    <div className="card-header">
-                                                        {/* Total Purchase */}
-                                                        <h4 className="card-title">Cassiterites</h4>
-                                                    </div>
-                                                    <div className="card-body">
-                                                        <div className="table-responsive">
-                                                            <div id="report_wrapper" className="no-footer">
-                                                                <table id="cassiteritePurchases" className="display dataTablesCard table-responsive-sm dataTable no-footer">
-                                                                    <thead>
-                                                                        <tr>
-                                                                            <th>{t("TotalPurchase")}</th>
-                                                                            <th></th>
-                                                                        </tr>
-                                                                    </thead>
-                                                                    <tbody>
-                                                                        <tr key="cd1">
-                                                                            <td className="sorting_1">{new Date().toUTCString().substring(0, 16)}</td>
-                                                                            <td>
-                                                                                <div>
-                                                                                    <Link to={"#"} className="h5">${(deliveries.cassiterite.daily).toFixed(2)}</Link>
-                                                                                </div>
-                                                                            </td>
-                                                                        </tr>
-                                                                        <tr key="cd2">
-                                                                            <td className="sorting_1">{t("ThisWeek")}</td>
-                                                                            <td>
-                                                                                <div>
-                                                                                    <Link to={"#"} className="h5">${(deliveries.cassiterite.weekly).toFixed(2)}</Link>
-                                                                                </div>
-                                                                            </td>
-                                                                        </tr>
-                                                                        <tr key="cd3">
-                                                                            <td className="sorting_1">{t("ThisMonth")}</td>
-                                                                            <td>
-                                                                                <div>
-                                                                                    <Link to={"#"} className="h5">${(deliveries.cassiterite.monthly).toFixed(2)}</Link>
-                                                                                </div>
-                                                                            </td>
-                                                                        </tr>
-                                                                    </tbody>
-                                                                </table>
+                                            {isGoldAccess ? (
+                                                <div className={purchaseCardClassName}>
+                                                    <div className="card">
+                                                        <div className="card-header">
+                                                            <h4 className="card-title">Gold</h4>
+                                                        </div>
+                                                        <div className="card-body">
+                                                            <div className="table-responsive">
+                                                                <div className="dataTables_wrapper no-footer">
+                                                                    <table id="goldPurchases" className="display dataTablesCard table-responsive-sm dataTable no-footer">
+                                                                        <thead>
+                                                                            <tr>
+                                                                                <th>{t("TotalPurchase")}</th>
+                                                                                <th></th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                            <tr key="gd1">
+                                                                                <td className="sorting_1">{new Date().toUTCString().substring(0, 16)}</td>
+                                                                                <td>
+                                                                                    <div>
+                                                                                        <Link to={"#"} className="h5">${(deliveries.gold.daily).toFixed(2)}</Link>
+                                                                                    </div>
+                                                                                </td>
+                                                                            </tr>
+                                                                            <tr key="gd2">
+                                                                                <td className="sorting_1">{t("ThisWeek")}</td>
+                                                                                <td>
+                                                                                    <div>
+                                                                                        <Link to={"#"} className="h5">${(deliveries.gold.weekly).toFixed(2)}</Link>
+                                                                                    </div>
+                                                                                </td>
+                                                                            </tr>
+                                                                            <tr key="gd3">
+                                                                                <td className="sorting_1">{t("ThisMonth")}</td>
+                                                                                <td>
+                                                                                    <div>
+                                                                                        <Link to={"#"} className="h5">${(deliveries.gold.monthly).toFixed(2)}</Link>
+                                                                                    </div>
+                                                                                </td>
+                                                                            </tr>
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            <div className="col-md-4">
-                                                <div className="card card-danger">
-                                                    <div className="card-header">
-                                                        <h4 className="card-title">Coltan</h4>
-                                                    </div>
-                                                    <div className="card-body">
-                                                        <div className="table-responsive">
-                                                            <div className="dataTables_wrapper no-footer">
-                                                                <table id="coltanPurchases" className="display dataTablesCard table-responsive-sm dataTable no-footer">
-                                                                    <thead>
-                                                                        <tr>
-                                                                            <th>{t("TotalPurchase")}</th>
-                                                                            <th></th>
-                                                                        </tr>
-                                                                    </thead>
-                                                                    <tbody>
-                                                                        <tr key="ccd1">
-                                                                            <td className="sorting_1">{new Date().toUTCString().substring(0, 16)}</td>
-                                                                            <td>
-                                                                                <div>
-                                                                                    <Link to={"#"} className="h5">
-                                                                                        ${(deliveries.coltan.daily).toFixed(2)}</Link>
-                                                                                </div>
-                                                                            </td>
-                                                                        </tr>
-                                                                        <tr key="ccd2">
-                                                                            <td className="sorting_1">{t("ThisWeek")}</td>
-                                                                            <td>
-                                                                                <div>
-                                                                                    <Link to={"#"} className="h5">${(deliveries.coltan.weekly).toFixed(2)}</Link>
-                                                                                </div>
-                                                                            </td>
-                                                                        </tr>
-                                                                        <tr key="ccd3">
-                                                                            <td className="sorting_1">{t("ThisMonth")}</td>
-                                                                            <td>
-                                                                                <div>
-                                                                                    <Link to={"#"} className="h5">${(deliveries.coltan.monthly).toFixed(2)}</Link>
-                                                                                </div>
-                                                                            </td>
-                                                                        </tr>
-                                                                    </tbody>
-                                                                </table>
+                                            ) : (
+                                                <>
+                                                    <div className={purchaseCardClassName}>
+                                                        <div className="card">
+                                                            <div className="card-header">
+                                                                {/* Total Purchase */}
+                                                                <h4 className="card-title">Cassitarate</h4>
+                                                            </div>
+                                                            <div className="card-body">
+                                                                <div className="table-responsive">
+                                                                    <div id="report_wrapper" className="no-footer">
+                                                                        <table id="cassiteritePurchases" className="display dataTablesCard table-responsive-sm dataTable no-footer">
+                                                                            <thead>
+                                                                                <tr>
+                                                                                    <th>{t("TotalPurchase")}</th>
+                                                                                    <th></th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                <tr key="cd1">
+                                                                                    <td className="sorting_1">{new Date().toUTCString().substring(0, 16)}</td>
+                                                                                    <td>
+                                                                                        <div>
+                                                                                            <Link to={"#"} className="h5">${(deliveries.cassiterite.daily).toFixed(2)}</Link>
+                                                                                        </div>
+                                                                                    </td>
+                                                                                </tr>
+                                                                                <tr key="cd2">
+                                                                                    <td className="sorting_1">{t("ThisWeek")}</td>
+                                                                                    <td>
+                                                                                        <div>
+                                                                                            <Link to={"#"} className="h5">${(deliveries.cassiterite.weekly).toFixed(2)}</Link>
+                                                                                        </div>
+                                                                                    </td>
+                                                                                </tr>
+                                                                                <tr key="cd3">
+                                                                                    <td className="sorting_1">{t("ThisMonth")}</td>
+                                                                                    <td>
+                                                                                        <div>
+                                                                                            <Link to={"#"} className="h5">${(deliveries.cassiterite.monthly).toFixed(2)}</Link>
+                                                                                        </div>
+                                                                                    </td>
+                                                                                </tr>
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </div>
-                                            <div className="col-md-4">
-                                                <div className="card">
-                                                    <div className="card-header">
-                                                        <h4 className="card-title">Wolframite</h4>
-                                                    </div>
-                                                    <div className="card-body">
-                                                        <div className="table-responsive">
-                                                            <div className="dataTables_wrapper no-footer">
-                                                                <table id="example" className="display dataTablesCard table-responsive-sm dataTable no-footer">
-                                                                    <thead>
-                                                                        <tr>
-                                                                            <th>{t("TotalPurchase")}</th>
-                                                                            <th></th>
-                                                                        </tr>
-                                                                    </thead>
-                                                                    <tbody>
-                                                                        <tr key="wd1">
-                                                                            <td className="sorting_1">{new Date().toUTCString().substring(0, 16)}</td>
-                                                                            <td>
-                                                                                <div>
-                                                                                    <Link to={"#"} className="h5">
-                                                                                        {(deliveries.wolframite.daily).toFixed(2)}</Link>
-                                                                                </div>
-                                                                            </td>
-                                                                        </tr>
-                                                                        <tr key="wd2">
-                                                                            <td className="sorting_1">{t("ThisWeek")}</td>
-                                                                            <td>
-                                                                                <div>
-                                                                                    <Link to={"#"} className="h5">
-                                                                                        {(deliveries.wolframite.weekly).toFixed(2)}</Link>
-                                                                                </div>
-                                                                            </td>
-                                                                        </tr>
-                                                                        <tr key="wd3">
-                                                                            <td className="sorting_1">{t("ThisMonth")}</td>
-                                                                            <td>
-                                                                                <div>
-                                                                                    <Link to={"#"} className="h5">
-                                                                                        {(deliveries.wolframite.monthly).toFixed(2)}</Link>
-                                                                                </div>
-                                                                            </td>
-                                                                        </tr>
-                                                                    </tbody>
-                                                                </table>
+                                                    <div className={purchaseCardClassName}>
+                                                        <div className="card card-danger">
+                                                            <div className="card-header">
+                                                                <h4 className="card-title">Coltan</h4>
+                                                            </div>
+                                                            <div className="card-body">
+                                                                <div className="table-responsive">
+                                                                    <div className="dataTables_wrapper no-footer">
+                                                                        <table id="coltanPurchases" className="display dataTablesCard table-responsive-sm dataTable no-footer">
+                                                                            <thead>
+                                                                                <tr>
+                                                                                    <th>{t("TotalPurchase")}</th>
+                                                                                    <th></th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                <tr key="ccd1">
+                                                                                    <td className="sorting_1">{new Date().toUTCString().substring(0, 16)}</td>
+                                                                                    <td>
+                                                                                        <div>
+                                                                                            <Link to={"#"} className="h5">
+                                                                                                ${(deliveries.coltan.daily).toFixed(2)}</Link>
+                                                                                        </div>
+                                                                                    </td>
+                                                                                </tr>
+                                                                                <tr key="ccd2">
+                                                                                    <td className="sorting_1">{t("ThisWeek")}</td>
+                                                                                    <td>
+                                                                                        <div>
+                                                                                            <Link to={"#"} className="h5">${(deliveries.coltan.weekly).toFixed(2)}</Link>
+                                                                                        </div>
+                                                                                    </td>
+                                                                                </tr>
+                                                                                <tr key="ccd3">
+                                                                                    <td className="sorting_1">{t("ThisMonth")}</td>
+                                                                                    <td>
+                                                                                        <div>
+                                                                                            <Link to={"#"} className="h5">${(deliveries.coltan.monthly).toFixed(2)}</Link>
+                                                                                        </div>
+                                                                                    </td>
+                                                                                </tr>
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </div>
+                                                    <div className={purchaseCardClassName}>
+                                                        <div className="card">
+                                                            <div className="card-header">
+                                                                <h4 className="card-title">Wolframite</h4>
+                                                            </div>
+                                                            <div className="card-body">
+                                                                <div className="table-responsive">
+                                                                    <div className="dataTables_wrapper no-footer">
+                                                                        <table id="example" className="display dataTablesCard table-responsive-sm dataTable no-footer">
+                                                                            <thead>
+                                                                                <tr>
+                                                                                    <th>{t("TotalPurchase")}</th>
+                                                                                    <th></th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                <tr key="wd1">
+                                                                                    <td className="sorting_1">{new Date().toUTCString().substring(0, 16)}</td>
+                                                                                    <td>
+                                                                                        <div>
+                                                                                            <Link to={"#"} className="h5">
+                                                                                                {(deliveries.wolframite.daily).toFixed(2)}</Link>
+                                                                                        </div>
+                                                                                    </td>
+                                                                                </tr>
+                                                                                <tr key="wd2">
+                                                                                    <td className="sorting_1">{t("ThisWeek")}</td>
+                                                                                    <td>
+                                                                                        <div>
+                                                                                            <Link to={"#"} className="h5">
+                                                                                                {(deliveries.wolframite.weekly).toFixed(2)}</Link>
+                                                                                        </div>
+                                                                                    </td>
+                                                                                </tr>
+                                                                                <tr key="wd3">
+                                                                                    <td className="sorting_1">{t("ThisMonth")}</td>
+                                                                                    <td>
+                                                                                        <div>
+                                                                                            <Link to={"#"} className="h5">
+                                                                                                {(deliveries.wolframite.monthly).toFixed(2)}</Link>
+                                                                                        </div>
+                                                                                    </td>
+                                                                                </tr>
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            )}
                                             <div className='col-12 mt-4'>
                                                 <div className="card">
                                                     <div className="card-header">
@@ -2971,6 +3145,7 @@ const Reports = ({ language, country }) => {
                                                                     {t("Production")}
                                                                 </Nav.Link>
                                                             </Nav.Item>
+                                                            {/* Show tabs for both 3ts and Gold */}
                                                             {access === `3ts` ?
                                                                 <>
                                                                     <Nav.Item as="li" className="nav-item">
@@ -3100,20 +3275,28 @@ const Reports = ({ language, country }) => {
                                                                                             const rowData = Array.isArray(prod) ? prod : Object.values(prod);
                                                                                             return (
                                                                                                 <tr key={`prod${i}`}>
-                                                                                                    {rowData.map((p, index) => (
-                                                                                                        <td key={index}>
-                                                                                                            {typeof p === 'string' && p.includes('Images') ? (
-                                                                                                                <button
-                                                                                                                    onClick={() => showAttachment(p, `Transaction: ${rowData[0]}`)}
-                                                                                                                    className='btn btn-sm btn-primary'
-                                                                                                                >
-                                                                                                                    View
-                                                                                                                </button>
-                                                                                                            ) : (
-                                                                                                                p
-                                                                                                            )}
-                                                                                                        </td>
-                                                                                                    ))}
+                                                                                                    {trace.production?.header?.map((headerName, index) => {
+                                                                                                        const fieldValue = rowData[index];
+                                                                                                        const isImageColumn = imageColumns.has(headerName);
+                                                                                                        return (
+                                                                                                            <td key={index}>
+                                                                                                                {isImageColumn ? (
+                                                                                                                    fieldValue ? (
+                                                                                                                        <button
+                                                                                                                            onClick={() => showAttachment(fieldValue, `Transaction: ${rowData[0]}`)}
+                                                                                                                            className='btn btn-sm btn-primary'
+                                                                                                                        >
+                                                                                                                            <i className="fa fa-eye me-1"></i> View
+                                                                                                                        </button>
+                                                                                                                    ) : (
+                                                                                                                        <span className="text-muted">—</span>
+                                                                                                                    )
+                                                                                                                ) : (
+                                                                                                                    fieldValue
+                                                                                                                )}
+                                                                                                            </td>
+                                                                                                        );
+                                                                                                    })}
                                                                                                 </tr>
                                                                                             );
                                                                                         })
@@ -3602,20 +3785,28 @@ const Reports = ({ language, country }) => {
                                                                                                     ) : (
                                                                                                         trace.blending['rows'].map((row, index) => (
                                                                                                             <tr key={`blending-${row.ID || index}`}>
-                                                                                                                {trace.blending['header'].map((headerKey) => (
-                                                                                                                    <td key={headerKey}>
-                                                                                                                        {headerKey.includes('Miners_Images') ?
-                                                                                                                            <button
-                                                                                                                                className="btn btn-sm btn-primary"
-                                                                                                                                onClick={() => showAttachment(row[headerKey], headerKey)}
-                                                                                                                            >
-                                                                                                                                View
-                                                                                                                            </button>
-                                                                                                                            :
-                                                                                                                            row[headerKey]
-                                                                                                                        }
-                                                                                                                    </td>
-                                                                                                                ))}
+                                                                                                                {trace.blending['header'].map((headerKey) => {
+                                                                                                                    const fieldValue = row[headerKey];
+                                                                                                                    const isImageColumn = imageColumns.has(headerKey);
+                                                                                                                    return (
+                                                                                                                        <td key={headerKey}>
+                                                                                                                            {isImageColumn ? (
+                                                                                                                                fieldValue ? (
+                                                                                                                                    <button
+                                                                                                                                        className="btn btn-sm btn-primary"
+                                                                                                                                        onClick={() => showAttachment(fieldValue, headerKey)}
+                                                                                                                                    >
+                                                                                                                                        <i className="fa fa-eye me-1"></i> View
+                                                                                                                                    </button>
+                                                                                                                                ) : (
+                                                                                                                                    <span className="text-muted">—</span>
+                                                                                                                                )
+                                                                                                                            ) : (
+                                                                                                                                fieldValue
+                                                                                                                            )}
+                                                                                                                        </td>
+                                                                                                                    );
+                                                                                                                })}
                                                                                                             </tr>
                                                                                                         ))
                                                                                                     )}
@@ -3782,23 +3973,28 @@ const Reports = ({ language, country }) => {
                                                                                                 ) : (
                                                                                                     trace.purchases['rows'].map((row, rowIndex) => (
                                                                                                         <tr key={`purchase-${rowIndex}`}>
-                                                                                                            {trace.purchases['header'].map((headerField, colIndex) => (
-                                                                                                                <td key={`${rowIndex}-${colIndex}`}>
-                                                                                                                    {(() => {
-                                                                                                                        const fieldValue = row[headerField];
-                                                                                                                        return fieldValue && fieldValue.includes(`Sell_Images`) ? (
-                                                                                                                            <button
-                                                                                                                                className="btn btn-sm btn-primary"
-                                                                                                                                onClick={() => showAttachment(fieldValue, headerField)}
-                                                                                                                            >
-                                                                                                                                View
-                                                                                                                            </button>
+                                                                                                            {trace.purchases['header'].map((headerField, colIndex) => {
+                                                                                                                const fieldValue = row[headerField];
+                                                                                                                const isImageColumn = imageColumns.has(headerField);
+                                                                                                                return (
+                                                                                                                    <td key={`${rowIndex}-${colIndex}`}>
+                                                                                                                        {isImageColumn ? (
+                                                                                                                            fieldValue ? (
+                                                                                                                                <button
+                                                                                                                                    className="btn btn-sm btn-primary"
+                                                                                                                                    onClick={() => showAttachment(fieldValue, headerField)}
+                                                                                                                                >
+                                                                                                                                    <i className="fa fa-eye me-1"></i> View
+                                                                                                                                </button>
+                                                                                                                            ) : (
+                                                                                                                                <span className="text-muted">—</span>
+                                                                                                                            )
                                                                                                                         ) : (
                                                                                                                             fieldValue || ''
-                                                                                                                        );
-                                                                                                                    })()}
-                                                                                                                </td>
-                                                                                                            ))}
+                                                                                                                        )}
+                                                                                                                    </td>
+                                                                                                                );
+                                                                                                            })}
                                                                                                         </tr>
                                                                                                     ))
                                                                                                 )}
@@ -4003,33 +4199,27 @@ const Reports = ({ language, country }) => {
 
                                                 <div className='row'>
                                                     <div className='col-md-5'>
-                                                        {access === "3ts" ? (
-                                                            // for prevent access of sale report to the gold 
-                                                            <div className='card'>
-                                                                <div className='card-header'>
-                                                                    <h5 className='card-title'>{t("SelectMinerals")}</h5>
-                                                                </div>
-                                                                <div className='card-body'>
-                                                                    <select onChange={changeMineral} className='form-control'>
-                                                                        <option>{t("SelectMineralShort")}</option>
-                                                                        {access === '3ts' ? (
-                                                                            <>
-                                                                                <option value="Cassiterite">Cassiterite/Tin</option>
-                                                                                <option value="Coltan">Coltan/Tantalum</option>
-                                                                                <option value="Wolframite">Wolframite</option>
-                                                                                <option value="Copper">Copper-Cobalts</option>
-                                                                            </>
-                                                                        ) : (
-                                                                            <option value="Gold">Gold</option>
-                                                                        )}
-                                                                    </select>
-                                                                </div>
+                                                        {/* Show mineral selection for both 3ts and Gold */}
+                                                        <div className='card'>
+                                                            <div className='card-header'>
+                                                                <h5 className='card-title'>{t("SelectMinerals")}</h5>
                                                             </div>
-                                                        ) :
-                                                            (<div></div>
-                                                                //nothing show when it is gold 
-
-                                                            )}
+                                                            <div className='card-body'>
+                                                                <select onChange={changeMineral} className='form-control'>
+                                                                    <option>{t("SelectMineralShort")}</option>
+                                                                    {access === '3ts' ? (
+                                                                        <>
+                                                                            <option value="Cassiterite">Cassiterite/Tin</option>
+                                                                            <option value="Coltan">Coltan/Tantalum</option>
+                                                                            <option value="Wolframite">Wolframite</option>
+                                                                            <option value="Copper">Copper-Cobalts</option>
+                                                                        </>
+                                                                    ) : (
+                                                                        <option value="Gold">Gold</option>
+                                                                    )}
+                                                                </select>
+                                                            </div>
+                                                        </div>
                                                     </div>
 
                                                     {mineral && (
@@ -4087,7 +4277,10 @@ const Reports = ({ language, country }) => {
                                                                 <button
                                                                     className='btn btn-success btn-sm'
                                                                     onClick={() => exportToCSV(
-                                                                        (rangeapplied ? appliedsale.sale_Report : sale.sale_Report),
+                                                                        (rangeapplied ? appliedsale.sale_Report : sale.sale_Report).map((item) => ({
+                                                                            ...item,
+                                                                            supplier: getReportEntityName(item)
+                                                                        })),
                                                                         ['supplier', 'volume', 'value'],
                                                                         `${mineral}_sale_report`
                                                                     )}
@@ -4112,7 +4305,7 @@ const Reports = ({ language, country }) => {
                                                                                 20
                                                                             ).map((sale, i) => (
                                                                                 <tr key={`sale${i}`}>
-                                                                                    <td>{sale.supplier}</td>
+                                                                                    <td>{getReportEntityName(sale)}</td>
                                                                                     <td>{sale.volume} Kg</td>
                                                                                     <td>
                                                                                         {new Intl.NumberFormat('en-US', {
@@ -4164,39 +4357,33 @@ const Reports = ({ language, country }) => {
 
                                                     <div className='row'>
                                                         <div className='col-md-5'>
-                                                            {access === "3ts" ? (
-                                                                // for prevent access of sale report to the gold
-                                                                <div className='card'>
-                                                                    <div className='card-header'>
-                                                                        <h5 className='card-title'>{t("SelectMineralsc")}</h5>
-                                                                    </div>
-                                                                    <div className='card-body'>
-                                                                        <select onChange={changeMineral} className='form-control'>
-                                                                            <option>{t("SelectMineralShort")}</option>
-                                                                            {access === '3ts' ? (
-                                                                                <>
-                                                                                    {user.type === "buyer" ? (
-                                                                                        <option value="Cassiterite">Cassiterite/Tin</option>
-                                                                                    ) : (
-                                                                                        <>
-                                                                                            <option value="Cassiterite">Cassiterite/Tin</option>
-                                                                                            <option value="Coltan">Coltan/Tantalum</option>
-                                                                                            <option value="Wolframite">Wolframite</option>
-                                                                                            <option value="Copper-cobalt">Copper-Cobalt</option>
-                                                                                        </>
-                                                                                    )}
-                                                                                </>
-                                                                            ) : (
-                                                                                <option value="Gold">Gold</option>
-                                                                            )}
-                                                                        </select>
-                                                                    </div>
+                                                            {/* Show mineral selection for both 3ts and Gold */}
+                                                            <div className='card'>
+                                                                <div className='card-header'>
+                                                                    <h5 className='card-title'>{t("SelectMineralsc")}</h5>
                                                                 </div>
-                                                            ) :
-                                                                (<div></div>
-                                                                    //nothing show when it is gold
-
-                                                                )}
+                                                                <div className='card-body'>
+                                                                    <select onChange={changeMineral} className='form-control'>
+                                                                        <option>{t("SelectMineralShort")}</option>
+                                                                        {access === '3ts' ? (
+                                                                            <>
+                                                                                {user.type === "buyer" ? (
+                                                                                    <option value="Cassiterite">Cassiterite/Tin</option>
+                                                                                ) : (
+                                                                                    <>
+                                                                                        <option value="Cassiterite">Cassiterite/Tin</option>
+                                                                                        <option value="Coltan">Coltan/Tantalum</option>
+                                                                                        <option value="Wolframite">Wolframite</option>
+                                                                                        <option value="Copper-cobalt">Copper-Cobalt</option>
+                                                                                    </>
+                                                                                )}
+                                                                            </>
+                                                                        ) : (
+                                                                            <option value="Gold">Gold</option>
+                                                                        )}
+                                                                    </select>
+                                                                </div>
+                                                            </div>
                                                         </div>
 
                                                         {mineral && (
@@ -4446,33 +4633,27 @@ const Reports = ({ language, country }) => {
 
                                                         <div className='row'>
                                                             <div className='col-md-5'>
-                                                                {access === "3ts" ? (
-                                                                    // for prevent access of sale report to the gold 
-                                                                    <div className='card'>
-                                                                        <div className='card-header'>
-                                                                            <h5 className='card-title'>{t("SelectMineralsS")}</h5>
-                                                                        </div>
-                                                                        <div className='card-body'>
-                                                                            <select onChange={changeMineralShipped} className='form-control'>
-                                                                                <option>{t("SelectMineralShort")}</option>
-                                                                                {access === '3ts' ? (
-                                                                                    <>
-                                                                                        <option value="Cassiterite">Cassiterite/Tin</option>
-                                                                                        <option value="Coltan">Coltan/Tantalum</option>
-                                                                                        <option value="Wolframite">Wolframite</option>
-                                                                                        <option value="Copper">Copper-Cobalt</option>
-                                                                                    </>
-                                                                                ) : (
-                                                                                    <option value="Gold">Gold</option>
-                                                                                )}
-                                                                            </select>
-                                                                        </div>
+                                                                {/* Show mineral selection for both 3ts and Gold */}
+                                                                <div className='card'>
+                                                                    <div className='card-header'>
+                                                                        <h5 className='card-title'>{t("SelectMineralsS")}</h5>
                                                                     </div>
-                                                                ) :
-                                                                    (<div></div>
-                                                                        //nothing show when it is gold 
-
-                                                                    )}
+                                                                    <div className='card-body'>
+                                                                        <select onChange={changeMineralShipped} className='form-control'>
+                                                                            <option>{t("SelectMineralShort")}</option>
+                                                                            {access === '3ts' ? (
+                                                                                <>
+                                                                                    <option value="Cassiterite">Cassiterite/Tin</option>
+                                                                                    <option value="Coltan">Coltan/Tantalum</option>
+                                                                                    <option value="Wolframite">Wolframite</option>
+                                                                                    <option value="Copper">Copper-Cobalt</option>
+                                                                                </>
+                                                                            ) : (
+                                                                                <option value="Gold">Gold</option>
+                                                                            )}
+                                                                        </select>
+                                                                    </div>
+                                                                </div>
                                                             </div>
 
 
@@ -4556,35 +4737,29 @@ const Reports = ({ language, country }) => {
 
                                                             <div className='row'>
                                                                 <div className='col-md-5'>
-                                                                    {access === "3ts" ? (
-                                                                        // for prevent access of sale report to the gold 
-                                                                        <div className='card'>
-                                                                            <div className='card-header'>
-                                                                                <h5 className='card-title'>{t("SelectMineralstrends")}</h5>
-                                                                            </div>
-                                                                            <div className='card-body'>
-                                                                                <select onChange={changesuppliertrends} className='form-control'>
-                                                                                    <option>{t("SelectCompanyShort")}</option>
-                                                                                    {access === '3ts' && suppliers && suppliers.suppliers_data && suppliers.suppliers_data.length > 0 ? (
-                                                                                        suppliers.suppliers_data.map(supplier => (
-                                                                                            <option
-                                                                                                key={supplier.id}
-                                                                                                value={JSON.stringify(supplier)}
-                                                                                            >
-                                                                                                {supplier.supplier}
-                                                                                            </option>
-                                                                                        ))
-                                                                                    ) : (
-                                                                                        <option value=""></option>
-                                                                                    )}
-                                                                                </select>
-                                                                            </div>
+                                                                    {/* Show supplier trends selection for both 3ts and Gold */}
+                                                                    <div className='card'>
+                                                                        <div className='card-header'>
+                                                                            <h5 className='card-title'>{t("SelectMineralstrends")}</h5>
                                                                         </div>
-                                                                    ) :
-                                                                        (<div></div>
-                                                                            //nothing show when it is gold 
-
-                                                                        )}
+                                                                        <div className='card-body'>
+                                                                            <select onChange={changesuppliertrends} className='form-control'>
+                                                                                <option>{t("SelectCompanyShort")}</option>
+                                                                                {access === 'gold' && suppliersgrade && suppliersgrade.trend && suppliersgrade.trend.length > 0 ? (
+                                                                                    suppliersgrade.trend.map(supplier => (
+                                                                                        <option
+                                                                                            key={getReportEntityId(supplier) || JSON.stringify(supplier)}
+                                                                                            value={JSON.stringify(supplier)}
+                                                                                        >
+                                                                                            {getReportEntityName(supplier) || t("SelectCompanyShort")}
+                                                                                        </option>
+                                                                                    ))
+                                                                                ) : (
+                                                                                    <option value=""></option>
+                                                                                )}
+                                                                            </select>
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
 
                                                                 {suppliertrend && (
@@ -4655,12 +4830,12 @@ const Reports = ({ language, country }) => {
                                                                                     ? (filteredTrendData.totalVolume > 0 ? (
                                                                                         <ReactApexChart
                                                                                             options={chartOptions_Trend}
-                                                                                            series={chartSeries_Trend}
+                                                                                             series={chartSeries_Trend}
                                                                                             type="bar"
                                                                                             height={500}
                                                                                         />
                                                                                     ) : (
-                                                                                        <p className="text-center">No data found</p>
+                                                                                         <p className="text-center">No data found</p>
                                                                                     ))
                                                                                     : (defaultTrendData.totalVolume > 0 ? (
                                                                                         <ReactApexChart
@@ -4685,35 +4860,29 @@ const Reports = ({ language, country }) => {
 
                                                                 <div className='row'>
                                                                     <div className='col-md-5'>
-                                                                        {access === "3ts" ? (
-                                                                            // for prevent access of sale report to the gold 
-                                                                            <div className='card'>
-                                                                                <div className='card-header'>
-                                                                                    <h5 className='card-title'>{t("Please Select the Company To generate Delivery Grade Trends")}</h5>
-                                                                                </div>
-                                                                                <div className='card-body'>
-                                                                                    <select onChange={changesupplierGradetrends} className='form-control'>
-                                                                                        <option>{t("SelectCompanyShort")}</option>
-                                                                                        {access === '3ts' && suppliersgrade && suppliersgrade.trend && suppliersgrade.trend.length > 0 ? (
-                                                                                            suppliersgrade.trend.map(supplier => (
-                                                                                                <option
-                                                                                                    key={supplier.supplierId}
-                                                                                                    value={JSON.stringify(supplier)}
-                                                                                                >
-                                                                                                    {supplier.suppliername}
-                                                                                                </option>
-                                                                                            ))
-                                                                                        ) : (
-                                                                                            <option value=""></option>
-                                                                                        )}
-                                                                                    </select>
-                                                                                </div>
+                                                                        {/* Show grade trends selection for both 3ts and Gold */}
+                                                                        <div className='card'>
+                                                                            <div className='card-header'>
+                                                                                <h5 className='card-title'>{t("Please Select the Company To generate Delivery Grade Trends")}</h5>
                                                                             </div>
-                                                                        ) :
-                                                                            (<div></div>
-                                                                                //nothing show when it is gold 
-
-                                                                            )}
+                                                                            <div className='card-body'>
+                                                                                <select onChange={changesupplierGradetrends} className='form-control'>
+                                                                                    <option>{t("SelectCompanyShort")}</option>
+                                                                                {access === 'gold' && suppliersgrade && suppliersgrade.trend && suppliersgrade.trend.length > 0 ? (
+                                                                                        suppliersgrade.trend.map(supplier => (
+                                                                                            <option
+                                                                                                key={getReportEntityId(supplier) || JSON.stringify(supplier)}
+                                                                                                value={JSON.stringify(supplier)}
+                                                                                            >
+                                                                                                {getReportEntityName(supplier) || t("SelectCompanyShort")}
+                                                                                            </option>
+                                                                                        ))
+                                                                                    ) : (
+                                                                                        <option value=""></option>
+                                                                                    )}
+                                                                                </select>
+                                                                            </div>
+                                                                        </div>
                                                                     </div>
 
                                                                     {suppliergradetrends && (
@@ -4781,6 +4950,10 @@ const Reports = ({ language, country }) => {
                                                                                     <h4 className="card-title">{t("Delivery Grade Trend Overview")}</h4>
                                                                                 </div>
                                                                                 <div className="card-body">
+                                                                                    <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                                        <span style={{ display: 'inline-block', width: '16px', height: '16px', backgroundColor: '#FFD700', borderRadius: '2px' }}></span>
+                                                                                        <span style={{ color: '#fff', fontSize: '14px', fontWeight: '500' }}>Gold</span>
+                                                                                    </div>
                                                                                     {yearFilterApplied
                                                                                         ? (filteredGradeData.totalGrade > 0 ? (
                                                                                             <ReactApexChart
@@ -4812,55 +4985,29 @@ const Reports = ({ language, country }) => {
 
                                                                     <div className='row'>
                                                                         <div className='col-md-5'>
-                                                                            {access === "3ts" ? (
-                                                                                // for prevent access of sale report to the gold 
-                                                                                <div className='card'>
-                                                                                    <div className='card-header'>
-                                                                                        <h5 className='card-title'>{t("SelectExportID")}</h5>
-                                                                                    </div>
-                                                                                    <div className='card-body'>
-                                                                                        <select onChange={changeExportationId} className='form-control'>
-                                                                                            <option>{t("SelectExport")}</option>
-                                                                                            {access === '3ts' && exportationid && exportationid.length > 0 ? (
-                                                                                                exportationid.map(export_item => (
-                                                                                                    <option
-                                                                                                        key={export_item.exportationid}
-                                                                                                        value={JSON.stringify(export_item)}
-                                                                                                    >
-                                                                                                        {export_item.exportationid}
-                                                                                                    </option>
-                                                                                                ))
-                                                                                            ) : (
-                                                                                                <option value="">{t("NoExportationData")}</option>
-                                                                                            )}
-                                                                                        </select>
-                                                                                    </div>
+                                                                            {/* Show time tracking selection for both 3ts and Gold */}
+                                                                            <div className='card'>
+                                                                                <div className='card-header'>
+                                                                                    <h5 className='card-title'>{t("SelectExportID")}</h5>
                                                                                 </div>
-                                                                            ) :
-                                                                                (<div className='card'>
-                                                                                    <div className='card-header'>
-                                                                                        <h5 className='card-title'>{t("SelectExportID")}</h5>
-                                                                                    </div>
-                                                                                    <div className='card-body'>
-                                                                                        <select onChange={changeExportationId} className='form-control'>
-                                                                                            <option>{t("SelectExport")}</option>
-                                                                                            {access === 'gold' && exportationid && exportationid.length > 0 ? (
-                                                                                                exportationid.map(export_item => (
-                                                                                                    <option
-                                                                                                        key={export_item.exportationid}
-                                                                                                        value={JSON.stringify(export_item)}
-                                                                                                    >
-                                                                                                        {export_item.exportationid}
-                                                                                                    </option>
-                                                                                                ))
-                                                                                            ) : (
-                                                                                                <option value="">{t("NoExportationData")}</option>
-                                                                                            )}
-                                                                                        </select>
-                                                                                    </div>
+                                                                                <div className='card-body'>
+                                                                                    <select onChange={changeExportationId} className='form-control'>
+                                                                                        <option>{t("SelectExport")}</option>
+                                                                                        {access === '3ts' && exportationid && exportationid.length > 0 ? (
+                                                                                            exportationid.map(export_item => (
+                                                                                                <option
+                                                                                                    key={export_item.exportationid}
+                                                                                                    value={JSON.stringify(export_item)}
+                                                                                                >
+                                                                                                    {export_item.exportationid}
+                                                                                                </option>
+                                                                                            ))
+                                                                                        ) : (
+                                                                                            <option value="">{t("NoExportationData")}</option>
+                                                                                        )}
+                                                                                    </select>
                                                                                 </div>
-
-                                                                                )}
+                                                                            </div>
                                                                         </div>
 
                                                                         {timeData && (
@@ -4974,311 +5121,311 @@ const Reports = ({ language, country }) => {
                                                                             </div>
                                                                         )}      </div>
                                                                 ) :
-                                                                     type === 'kycsummary' ? (
-                                                                                                                                            <div className="row">
-                                                                                                                                                <div className="col-12">
-                                                                                                                                                    <Card className="bg-dark text-white" style={{ borderRadius: '6px' }}>
-                                                                                                                                                        <Card.Header className="d-flex justify-content-between align-items-center flex-wrap gap-2" style={{ borderBottom: '1px solid #444' }}>
-                                                                                                                                                            <h4 className="card-title text-white mb-0">{t("KYC Upload Summary")}</h4>
-                                                                                                                                                            <div className="d-flex gap-2 align-items-center">
-                                                                                                                                                                <button
-                                                                                                                                                                    className='btn btn-success btn-sm'
-                                                                                                                                                                    onClick={() => {
-                                                                                                                                                                        const rows = filteredCompanies().map(([name, data]) => ({
-                                                                                                                                                                            Supplier: name,
-                                                                                                                                                                            BasicInfo: data.basicInfo,
-                                                                                                                                                                            KYC: data['KYC'],
-                                                                                                                                                                            CertificateOfIncorporation: data['Certificate of Incorporation'],
-                                                                                                                                                                            CertificateOfConformity: data['Certificate of conformity'],
-                                                                                                                                                                            TaxRegister: data['Tax Register'],
-                                                                                                                                                                            Organigramme: data['Organigramme'],
-                                                                                                                                                                            Document: data['Document'],
-                                                                                                                                                                            Completion: data.progress
-                                                                                                                                                                        }));
-                                                                                                                                                                        exportToCSV(rows, ['Supplier', 'BasicInfo', 'KYC', 'CertificateOfIncorporation', 'CertificateOfConformity', 'TaxRegister', 'Organigramme', 'Document', 'Completion'], 'kyc_summary');
-                                                                                                                                                                    }}
-                                                                                                                                                                >
-                                                                                                                                                                    <i className='fa fa-download me-1'></i> Export CSV
-                                                                                                                                                                </button>
-                                                                                                                                                                <div style={{ width: '250px' }}>
-                                                                                                                                                                    <InputGroup>
-                                                                                                                                                                        <Form.Control
-                                                                                                                                                                            type="text"
-                                                                                                                                                                            placeholder={t("Search")}
-                                                                                                                                                                            value={searchTerm}
-                                                                                                                                                                            onChange={(e) => {
-                                                                                                                                                                                setSearchTerm(e.target.value);
-                                                                                                                                                                                setCurrentKycPage(1); // Reset to first page when searching
-                                                                                                                                                                            }}
-                                                                                                                                                                            className="bg-dark text-white"
-                                                                                                                                                                            style={{
-                                                                                                                                                                                border: '1px solid #555',
-                                                                                                                                                                                borderRadius: '5px',
-                                                                                                                                                                                height: '40px'
-                                                                                                                                                                            }}
-                                                                                                                                                                        />
-                                                                                                                                                                    </InputGroup>
-                                                                                                                                                                </div>
-                                                                                                                                                            </div>
-                                                                                                                                                        </Card.Header>
-                                                                                                                                                        <Card.Body className="p-0">
-                                                                                                                                                            {kycLoading ? (
-                                                                                                                                                                <div className="text-center p-4">
-                                                                                                                                                                    <div className="spinner-border text-info" role="status">
-                                                                                                                                                                        <span className="visually-hidden">{t("Loading...")}</span>
-                                                                                                                                                                    </div>
-                                                                                                                                                                    <p className="mt-2">{t("Loading KYC summary data...")}</p>
-                                                                                                                                                                </div>
-                                                                                                                                                            ) : (
-                                                                                                                                                                <div style={{ overflowX: 'auto' }}>
-                                                                                                                                                                    {filteredCompanies().length > 0 ? (
-                                                                                                                                                                        <>
-                                                                                                                                                                            <table className="table table-dark table-bordered mb-0">
-                                                                                                                                                                                <thead>
-                                                                                                                                                                                    <tr>
-                                                                                                                                                                                        <th style={{
-                                                                                                                                                                                            position: 'sticky',
-                                                                                                                                                                                            left: 0,
-                                                                                                                                                                                            zIndex: 2,
-                                                                                                                                                                                            width: '250px',
-                                                                                                                                                                                            backgroundColor: '#37a3d3',
-                                                                                                                                                                                            padding: '15px',
-                                                                                                                                                                                            color: 'white',
-                                                                                                                                                                                            boxShadow: '2px 0 5px rgba(0, 0, 0, 0.3)'
-                                                                                                                                                                                        }}>
-                                                                                                                                                                                            {t("Supplier")}
-                                                                                                                                                                                        </th>
-                                                                                                                                                                                        <th style={{
-                                                                                                                                                                                            backgroundColor: '#37a3d3',
-                                                                                                                                                                                            borderRight: '1px solid #444',
-                                                                                                                                                                                            padding: '15px',
-                                                                                                                                                                                            color: 'white',
-                                                                                                                                                                                            textAlign: 'center',
-                                                                                                                                                                                            minWidth: '150px'
-                                                                                                                                                                                        }}>
-                                                                                                                                                                                            {t("Basic Info")}
-                                                                                                                                                                                            <div className="small">
-                                                                                                                                                                                                {t("(Company Name, Address, Reg Num, Company Country)")}
-                                                                                                                                                                                            </div>
-                                                                                                                                                                                        </th>
-                                                                                                                                                                                        <th style={{
-                                                                                                                                                                                            backgroundColor: '#37a3d3',
-                                                                                                                                                                                            borderRight: '1px solid #444',
-                                                                                                                                                                                            padding: '15px',
-                                                                                                                                                                                            color: 'white',
-                                                                                                                                                                                            textAlign: 'center',
-                                                                                                                                                                                            minWidth: '150px'
-                                                                                                                                                                                        }}>
-                                                                                                                                                                                            {t("KYC Signed Form")}
-                                                                                                                                                                                        </th>
-                                                                                                                                                                                        <th style={{
-                                                                                                                                                                                            backgroundColor: '#37a3d3',
-                                                                                                                                                                                            borderRight: '1px solid #444',
-                                                                                                                                                                                            padding: '15px',
-                                                                                                                                                                                            color: 'white',
-                                                                                                                                                                                            textAlign: 'center',
-                                                                                                                                                                                            minWidth: '150px'
-                                                                                                                                                                                        }}>
-                                                                                                                                                                                            {t("Certificate of Incorporation")}
-                                                                                                                                                                                        </th>
-                                                                                                                                                                                        <th style={{
-                                                                                                                                                                                            backgroundColor: '#37a3d3',
-                                                                                                                                                                                            borderRight: '1px solid #444',
-                                                                                                                                                                                            padding: '15px',
-                                                                                                                                                                                            color: 'white',
-                                                                                                                                                                                            textAlign: 'center',
-                                                                                                                                                                                            minWidth: '150px'
-                                                                                                                                                                                        }}>
-                                                                                                                                                                                            {t("Certificate of conformity")}
-                                                                                                                                                                                        </th>
-                                                                                                                                                                                        <th style={{
-                                                                                                                                                                                            backgroundColor: '#37a3d3',
-                                                                                                                                                                                            borderRight: '1px solid #444',
-                                                                                                                                                                                            padding: '15px',
-                                                                                                                                                                                            color: 'white',
-                                                                                                                                                                                            textAlign: 'center',
-                                                                                                                                                                                            minWidth: '150px'
-                                                                                                                                                                                        }}>
-                                                                                                                                                                                            {t("Tax Register")}
-                                                                                                                                                                                        </th>
-                                                                                                                                                                                        <th style={{
-                                                                                                                                                                                            backgroundColor: '#37a3d3',
-                                                                                                                                                                                            borderRight: '1px solid #444',
-                                                                                                                                                                                            padding: '15px',
-                                                                                                                                                                                            color: 'white',
-                                                                                                                                                                                            textAlign: 'center',
-                                                                                                                                                                                            minWidth: '150px'
-                                                                                                                                                                                        }}>
-                                                                                                                                                                                            {t("Organigramme")}
-                                                                                                                                                                                        </th>
-                                                                                                                                                                                        <th style={{
-                                                                                                                                                                                            backgroundColor: '#37a3d3',
-                                                                                                                                                                                            borderRight: '1px solid #444',
-                                                                                                                                                                                            padding: '15px',
-                                                                                                                                                                                            color: 'white',
-                                                                                                                                                                                            textAlign: 'center',
-                                                                                                                                                                                            minWidth: '150px'
-                                                                                                                                                                                        }}>
-                                                                                                                                                                                            {t("Document")}
-                                                                                                                                                                                        </th>
-                                                                                                                                                                                        <th style={{
-                                                                                                                                                                                            backgroundColor: '#37a3d3',
-                                                                                                                                                                                            padding: '15px',
-                                                                                                                                                                                            color: 'white',
-                                                                                                                                                                                            textAlign: 'center',
-                                                                                                                                                                                            minWidth: '150px'
-                                                                                                                                                                                        }}>
-                                                                                                                                                                                            {t("Completion")}
-                                                                                                                                                                                        </th>
-                                                                                                                                                                                    </tr>
-                                                                                                                                                                                </thead>
-                                                                                                                                                                                <tbody>
-                                                                                                                                                                                    {getPaginatedCompanies().map(([companyName, data], index) => (
-                                                                                                                                                                                        <tr key={companyName} className={index % 2 === 0 ? 'bg-dark' : ''}>
-                                                                                                                                                                                            <td style={{
-                                                                                                                                                                                                position: 'sticky',
-                                                                                                                                                                                                left: 0,
-                                                                                                                                                                                                zIndex: 1,
-                                                                                                                                                                                                padding: '15px',
-                                                                                                                                                                                                fontWeight: 'bold',
-                                                                                                                                                                                                backgroundColor: index % 2 === 0 ? '#222' : '#2a2a2a',
-                                                                                                                                                                                                borderRight: '2px solid #37a3d3',
-                                                                                                                                                                                                boxShadow: '2px 0 5px rgba(0, 0, 0, 0.3)'
-                                                                                                                                                                                            }}>
-                                                                                                                                                                                                <Link 
-                                                                                                                                                                                                    to={`/Kyc/${data.id}?tab=documents`}
-                                                                                                                                                                                                    style={{
-                                                                                                                                                                                                        color: '#37a3d3',
-                                                                                                                                                                                                        textDecoration: 'none',
-                                                                                                                                                                                                        cursor: 'pointer'
-                                                                                                                                                                                                    }}
-                                                                                                                                                                                                    onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
-                                                                                                                                                                                                    onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
-                                                                                                                                                                                                >
-                                                                                                                                                                                                    {companyName}
-                                                                                                                                                                                                </Link>
-                                                                                                                                                                                            </td>
-                                                                                                                                                                                            <td style={{
-                                                                                                                                                                                                padding: '10px',
-                                                                                                                                                                                                borderRight: '1px solid #444',
-                                                                                                                                                                                                textAlign: 'center'
-                                                                                                                                                                                            }}>
-                                                                                                                                                                                                <YesNoButton value={data.basicInfo} />
-                                                                                                                                                                                            </td>
-                                                                                                                                                                                            <td style={{
-                                                                                                                                                                                                padding: '10px',
-                                                                                                                                                                                                borderRight: '1px solid #444',
-                                                                                                                                                                                                textAlign: 'center'
-                                                                                                                                                                                            }}>
-                                                                                                                                                                                                <YesNoButton value={data["KYC"]} />
-                                                                                                                                                                                            </td>
-                                                                                                                                                                                            <td style={{
-                                                                                                                                                                                                padding: '10px',
-                                                                                                                                                                                                borderRight: '1px solid #444',
-                                                                                                                                                                                                textAlign: 'center'
-                                                                                                                                                                                            }}>
-                                                                                                                                                                                                <YesNoButton value={data["Certificate of Incorporation"]} />
-                                                                                                                                                                                            </td>
-                                                                                                                                                                                            <td style={{
-                                                                                                                                                                                                padding: '10px',
-                                                                                                                                                                                                borderRight: '1px solid #444',
-                                                                                                                                                                                                textAlign: 'center'
-                                                                                                                                                                                            }}>
-                                                                                                                                                                                                <YesNoButton value={data["Certificate of conformity"]} />
-                                                                                                                                                                                            </td>
-                                                                                                                                                                                            <td style={{
-                                                                                                                                                                                                padding: '10px',
-                                                                                                                                                                                                borderRight: '1px solid #444',
-                                                                                                                                                                                                textAlign: 'center'
-                                                                                                                                                                                            }}>
-                                                                                                                                                                                                <YesNoButton value={data["Tax Register"]} />
-                                                                                                                                                                                            </td>
-                                                                                                                                                                                            <td style={{
-                                                                                                                                                                                                padding: '10px',
-                                                                                                                                                                                                borderRight: '1px solid #444',
-                                                                                                                                                                                                textAlign: 'center'
-                                                                                                                                                                                            }}>
-                                                                                                                                                                                                <YesNoButton value={data["Organigramme"]} />
-                                                                                                                                                                                            </td>
-                                                                                                                                                                                            <td style={{
-                                                                                                                                                                                                padding: '10px',
-                                                                                                                                                                                                borderRight: '1px solid #444',
-                                                                                                                                                                                                textAlign: 'center'
-                                                                                                                                                                                            }}>
-                                                                                                                                                                                                <YesNoButton value={data["Document"]} />
-                                                                                                                                                                                            </td>
-                                                                                                                                                                                            <td style={{
-                                                                                                                                                                                                padding: '10px',
-                                                                                                                                                                                                textAlign: 'center',
-                                                                                                                                                                                                verticalAlign: 'middle'
-                                                                                                                                                                                            }}>
-                                                                                                                                                                                                <ProgressBar percentage={data.progress} />
-                                                                                                                                                                                            </td>
-                                                                                                                                                                                        </tr>
-                                                                                                                                                                                    ))}
-                                                                                                                                                                                </tbody>
-                                                                                                                                                                            </table>
-                                                                    
-                                                                                                                                                                            {/* Pagination controls */}
-                                                                                                                                                                            <div className="d-sm-flex text-center justify-content-between align-items-center mt-3 p-3 bg-dark">
-                                                                                                                                                                                <div className="dataTables_info text-white">
-                                                                                                                                                                                    {t("Showing")} {(currentKycPage - 1) * kycItemsPerPage + 1} {t("To")}{" "}
-                                                                                                                                                                                    {Math.min(currentKycPage * kycItemsPerPage, filteredCompanies().length)} {t("Of")}{" "}
-                                                                                                                                                                                    {filteredCompanies().length} {t("Entries")}
-                                                                                                                                                                                </div>
-                                                                                                                                                                                <div className="dataTables_paginate paging_simple_numbers">
-                                                                                                                                                                                    <button
-                                                                                                                                                                                        className={`btn ${currentKycPage === 1 ? 'btn-secondary' : 'btn-primary'}`}
-                                                                                                                                                                                        style={{
-                                                                                                                                                                                            minWidth: '120px',
-                                                                                                                                                                                            whiteSpace: 'nowrap',
-                                                                                                                                                                                            overflow: 'hidden',
-                                                                                                                                                                                            textOverflow: 'ellipsis',
-                                                                                                                                                                                            padding: '8px 12px',
-                                                                                                                                                                                            marginRight: '10px'
-                                                                                                                                                                                        }}
-                                                                                                                                                                                        onClick={() => handleKycPageChange(currentKycPage - 1)}
-                                                                                                                                                                                        disabled={currentKycPage === 1}
-                                                                                                                                                                                    >
-                                                                                                                                                                                        {t("Previous")}
-                                                                                                                                                                                    </button>
-                                                                                                                                                                                    <span className="mx-2 text-white">
-                                                                                                                                                                                        {currentKycPage} / {totalKycPages()}
-                                                                                                                                                                                    </span>
-                                                                                                                                                                                    <button
-                                                                                                                                                                                        className={`btn ${currentKycPage === totalKycPages() ? 'btn-secondary' : 'btn-primary'}`}
-                                                                                                                                                                                        style={{
-                                                                                                                                                                                            minWidth: '120px',
-                                                                                                                                                                                            whiteSpace: 'nowrap',
-                                                                                                                                                                                            overflow: 'hidden',
-                                                                                                                                                                                            textOverflow: 'ellipsis',
-                                                                                                                                                                                            padding: '8px 12px',
-                                                                                                                                                                                            marginLeft: '10px'
-                                                                                                                                                                                        }}
-                                                                                                                                                                                        onClick={() => handleKycPageChange(currentKycPage + 1)}
-                                                                                                                                                                                        disabled={currentKycPage === totalKycPages()}
-                                                                                                                                                                                    >
-                                                                                                                                                                                        {t("Next")}
-                                                                                                                                                                                    </button>
-                                                                                                                                                                                </div>
-                                                                                                                                                                            </div>
-                                                                                                                                                                        </>
-                                                                                                                                                                    ) : (
-                                                                                                                                                                        <div className="text-center p-4">
-                                                                                                                                                                            <p>
-                                                                                                                                                                                {searchTerm
-                                                                                                                                                                                    ? t("No companies found matching your search")
-                                                                                                                                                                                    : t("No KYC data available for the selected country")}
-                                                                                                                                                                            </p>
-                                                                                                                                                                        </div>
-                                                                                                                                                                    )}
-                                                                                                                                                                </div>
-                                                                                                                                                            )}
-                                                                                                                                                        </Card.Body>
-                                                                                                                                                    </Card>
-                                                                                                                                                </div>
-                                                                                                                                            </div>
-                                                                                                                                        ) :
+                                                                    type === 'kycsummary' ? (
+                                                                        <div className="row">
+                                                                            <div className="col-12">
+                                                                                <Card className="bg-dark text-white" style={{ borderRadius: '6px' }}>
+                                                                                    <Card.Header className="d-flex justify-content-between align-items-center flex-wrap gap-2" style={{ borderBottom: '1px solid #444' }}>
+                                                                                        <h4 className="card-title text-white mb-0">{t("KYC Upload Summary")}</h4>
+                                                                                        <div className="d-flex gap-2 align-items-center">
+                                                                                            <button
+                                                                                                className='btn btn-success btn-sm'
+                                                                                                onClick={() => {
+                                                                                                    const rows = filteredCompanies().map(([name, data]) => ({
+                                                                                                        Supplier: name,
+                                                                                                        BasicInfo: data.basicInfo,
+                                                                                                        KYC: data['KYC'],
+                                                                                                        CertificateOfIncorporation: data['Certificate of Incorporation'],
+                                                                                                        CertificateOfConformity: data['Certificate of conformity'],
+                                                                                                        TaxRegister: data['Tax Register'],
+                                                                                                        Organigramme: data['Organigramme'],
+                                                                                                        Document: data['Document'],
+                                                                                                        Completion: data.progress
+                                                                                                    }));
+                                                                                                    exportToCSV(rows, ['Supplier', 'BasicInfo', 'KYC', 'CertificateOfIncorporation', 'CertificateOfConformity', 'TaxRegister', 'Organigramme', 'Document', 'Completion'], 'kyc_summary');
+                                                                                                }}
+                                                                                            >
+                                                                                                <i className='fa fa-download me-1'></i> Export CSV
+                                                                                            </button>
+                                                                                            <div style={{ width: '250px' }}>
+                                                                                                <InputGroup>
+                                                                                                    <Form.Control
+                                                                                                        type="text"
+                                                                                                        placeholder={t("Search")}
+                                                                                                        value={searchTerm}
+                                                                                                        onChange={(e) => {
+                                                                                                            setSearchTerm(e.target.value);
+                                                                                                            setCurrentKycPage(1); // Reset to first page when searching
+                                                                                                        }}
+                                                                                                        className="bg-dark text-white"
+                                                                                                        style={{
+                                                                                                            border: '1px solid #555',
+                                                                                                            borderRadius: '5px',
+                                                                                                            height: '40px'
+                                                                                                        }}
+                                                                                                    />
+                                                                                                </InputGroup>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </Card.Header>
+                                                                                    <Card.Body className="p-0">
+                                                                                        {kycLoading ? (
+                                                                                            <div className="text-center p-4">
+                                                                                                <div className="spinner-border text-info" role="status">
+                                                                                                    <span className="visually-hidden">{t("Loading...")}</span>
+                                                                                                </div>
+                                                                                                <p className="mt-2">{t("Loading KYC summary data...")}</p>
+                                                                                            </div>
+                                                                                        ) : (
+                                                                                            <div style={{ overflowX: 'auto' }}>
+                                                                                                {filteredCompanies().length > 0 ? (
+                                                                                                    <>
+                                                                                                        <table className="table table-dark table-bordered mb-0">
+                                                                                                            <thead>
+                                                                                                                <tr>
+                                                                                                                    <th style={{
+                                                                                                                        position: 'sticky',
+                                                                                                                        left: 0,
+                                                                                                                        zIndex: 2,
+                                                                                                                        width: '250px',
+                                                                                                                        backgroundColor: '#37a3d3',
+                                                                                                                        padding: '15px',
+                                                                                                                        color: 'white',
+                                                                                                                        boxShadow: '2px 0 5px rgba(0, 0, 0, 0.3)'
+                                                                                                                    }}>
+                                                                                                                        {t("Supplier")}
+                                                                                                                    </th>
+                                                                                                                    <th style={{
+                                                                                                                        backgroundColor: '#37a3d3',
+                                                                                                                        borderRight: '1px solid #444',
+                                                                                                                        padding: '15px',
+                                                                                                                        color: 'white',
+                                                                                                                        textAlign: 'center',
+                                                                                                                        minWidth: '150px'
+                                                                                                                    }}>
+                                                                                                                        {t("Basic Info")}
+                                                                                                                        <div className="small">
+                                                                                                                            {t("(Company Name, Address, Reg Num, Company Country)")}
+                                                                                                                        </div>
+                                                                                                                    </th>
+                                                                                                                    <th style={{
+                                                                                                                        backgroundColor: '#37a3d3',
+                                                                                                                        borderRight: '1px solid #444',
+                                                                                                                        padding: '15px',
+                                                                                                                        color: 'white',
+                                                                                                                        textAlign: 'center',
+                                                                                                                        minWidth: '150px'
+                                                                                                                    }}>
+                                                                                                                        {t("KYC Signed Form")}
+                                                                                                                    </th>
+                                                                                                                    <th style={{
+                                                                                                                        backgroundColor: '#37a3d3',
+                                                                                                                        borderRight: '1px solid #444',
+                                                                                                                        padding: '15px',
+                                                                                                                        color: 'white',
+                                                                                                                        textAlign: 'center',
+                                                                                                                        minWidth: '150px'
+                                                                                                                    }}>
+                                                                                                                        {t("Certificate of Incorporation")}
+                                                                                                                    </th>
+                                                                                                                    <th style={{
+                                                                                                                        backgroundColor: '#37a3d3',
+                                                                                                                        borderRight: '1px solid #444',
+                                                                                                                        padding: '15px',
+                                                                                                                        color: 'white',
+                                                                                                                        textAlign: 'center',
+                                                                                                                        minWidth: '150px'
+                                                                                                                    }}>
+                                                                                                                        {t("Certificate of conformity")}
+                                                                                                                    </th>
+                                                                                                                    <th style={{
+                                                                                                                        backgroundColor: '#37a3d3',
+                                                                                                                        borderRight: '1px solid #444',
+                                                                                                                        padding: '15px',
+                                                                                                                        color: 'white',
+                                                                                                                        textAlign: 'center',
+                                                                                                                        minWidth: '150px'
+                                                                                                                    }}>
+                                                                                                                        {t("Tax Register")}
+                                                                                                                    </th>
+                                                                                                                    <th style={{
+                                                                                                                        backgroundColor: '#37a3d3',
+                                                                                                                        borderRight: '1px solid #444',
+                                                                                                                        padding: '15px',
+                                                                                                                        color: 'white',
+                                                                                                                        textAlign: 'center',
+                                                                                                                        minWidth: '150px'
+                                                                                                                    }}>
+                                                                                                                        {t("Organigramme")}
+                                                                                                                    </th>
+                                                                                                                    <th style={{
+                                                                                                                        backgroundColor: '#37a3d3',
+                                                                                                                        borderRight: '1px solid #444',
+                                                                                                                        padding: '15px',
+                                                                                                                        color: 'white',
+                                                                                                                        textAlign: 'center',
+                                                                                                                        minWidth: '150px'
+                                                                                                                    }}>
+                                                                                                                        {t("Document")}
+                                                                                                                    </th>
+                                                                                                                    <th style={{
+                                                                                                                        backgroundColor: '#37a3d3',
+                                                                                                                        padding: '15px',
+                                                                                                                        color: 'white',
+                                                                                                                        textAlign: 'center',
+                                                                                                                        minWidth: '150px'
+                                                                                                                    }}>
+                                                                                                                        {t("Completion")}
+                                                                                                                    </th>
+                                                                                                                </tr>
+                                                                                                            </thead>
+                                                                                                            <tbody>
+                                                                                                                {getPaginatedCompanies().map(([companyName, data], index) => (
+                                                                                                                    <tr key={companyName} className={index % 2 === 0 ? 'bg-dark' : ''}>
+                                                                                                                        <td style={{
+                                                                                                                            position: 'sticky',
+                                                                                                                            left: 0,
+                                                                                                                            zIndex: 1,
+                                                                                                                            padding: '15px',
+                                                                                                                            fontWeight: 'bold',
+                                                                                                                            backgroundColor: index % 2 === 0 ? '#222' : '#2a2a2a',
+                                                                                                                            borderRight: '2px solid #37a3d3',
+                                                                                                                            boxShadow: '2px 0 5px rgba(0, 0, 0, 0.3)'
+                                                                                                                        }}>
+                                                                                                                            <Link 
+                                                                                                                                to={`/Kyc/${data.id}?tab=documents`}
+                                                                                                                                style={{
+                                                                                                                                    color: '#37a3d3',
+                                                                                                                                    textDecoration: 'none',
+                                                                                                                                    cursor: 'pointer'
+                                                                                                                                }}
+                                                                                                                                onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+                                                                                                                                onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+                                                                                                                            >
+                                                                                                                                {companyName}
+                                                                                                                            </Link>
+                                                                                                                        </td>
+                                                                                                                        <td style={{
+                                                                                                                            padding: '10px',
+                                                                                                                            borderRight: '1px solid #444',
+                                                                                                                            textAlign: 'center'
+                                                                                                                        }}>
+                                                                                                                            <YesNoButton value={data.basicInfo} />
+                                                                                                                        </td>
+                                                                                                                        <td style={{
+                                                                                                                            padding: '10px',
+                                                                                                                            borderRight: '1px solid #444',
+                                                                                                                            textAlign: 'center'
+                                                                                                                        }}>
+                                                                                                                            <YesNoButton value={data["KYC"]} />
+                                                                                                                        </td>
+                                                                                                                        <td style={{
+                                                                                                                            padding: '10px',
+                                                                                                                            borderRight: '1px solid #444',
+                                                                                                                            textAlign: 'center'
+                                                                                                                        }}>
+                                                                                                                            <YesNoButton value={data["Certificate of Incorporation"]} />
+                                                                                                                        </td>
+                                                                                                                        <td style={{
+                                                                                                                            padding: '10px',
+                                                                                                                            borderRight: '1px solid #444',
+                                                                                                                            textAlign: 'center'
+                                                                                                                        }}>
+                                                                                                                            <YesNoButton value={data["Certificate of conformity"]} />
+                                                                                                                        </td>
+                                                                                                                        <td style={{
+                                                                                                                            padding: '10px',
+                                                                                                                            borderRight: '1px solid #444',
+                                                                                                                            textAlign: 'center'
+                                                                                                                        }}>
+                                                                                                                            <YesNoButton value={data["Tax Register"]} />
+                                                                                                                        </td>
+                                                                                                                        <td style={{
+                                                                                                                            padding: '10px',
+                                                                                                                            borderRight: '1px solid #444',
+                                                                                                                            textAlign: 'center'
+                                                                                                                        }}>
+                                                                                                                            <YesNoButton value={data["Organigramme"]} />
+                                                                                                                        </td>
+                                                                                                                        <td style={{
+                                                                                                                            padding: '10px',
+                                                                                                                            borderRight: '1px solid #444',
+                                                                                                                            textAlign: 'center'
+                                                                                                                        }}>
+                                                                                                                            <YesNoButton value={data["Document"]} />
+                                                                                                                        </td>
+                                                                                                                        <td style={{
+                                                                                                                            padding: '10px',
+                                                                                                                            textAlign: 'center',
+                                                                                                                            verticalAlign: 'middle'
+                                                                                                                        }}>
+                                                                                                                            <ProgressBar percentage={data.progress} />
+                                                                                                                        </td>
+                                                                                                                    </tr>
+                                                                                                                ))}
+                                                                                                            </tbody>
+                                                                                                        </table>
+
+                                                                                                        {/* Pagination controls */}
+                                                                                                        <div className="d-sm-flex text-center justify-content-between align-items-center mt-3 p-3 bg-dark">
+                                                                                                            <div className="dataTables_info text-white">
+                                                                                                                {t("Showing")} {(currentKycPage - 1) * kycItemsPerPage + 1} {t("To")}{" "}
+                                                                                                                {Math.min(currentKycPage * kycItemsPerPage, filteredCompanies().length)} {t("Of")}{" "}
+                                                                                                                {filteredCompanies().length} {t("Entries")}
+                                                                                                            </div>
+                                                                                                            <div className="dataTables_paginate paging_simple_numbers">
+                                                                                                                <button
+                                                                                                                    className={`btn ${currentKycPage === 1 ? 'btn-secondary' : 'btn-primary'}`}
+                                                                                                                    style={{
+                                                                                                                        minWidth: '120px',
+                                                                                                                        whiteSpace: 'nowrap',
+                                                                                                                        overflow: 'hidden',
+                                                                                                                        textOverflow: 'ellipsis',
+                                                                                                                        padding: '8px 12px',
+                                                                                                                        marginRight: '10px'
+                                                                                                                    }}
+                                                                                                                    onClick={() => handleKycPageChange(currentKycPage - 1)}
+                                                                                                                    disabled={currentKycPage === 1}
+                                                                                                                >
+                                                                                                                    {t("Previous")}
+                                                                                                                </button>
+                                                                                                                <span className="mx-2 text-white">
+                                                                                                                    {currentKycPage} / {totalKycPages()}
+                                                                                                                </span>
+                                                                                                                <button
+                                                                                                                    className={`btn ${currentKycPage === totalKycPages() ? 'btn-secondary' : 'btn-primary'}`}
+                                                                                                                    style={{
+                                                                                                                        minWidth: '120px',
+                                                                                                                        whiteSpace: 'nowrap',
+                                                                                                                        overflow: 'hidden',
+                                                                                                                        textOverflow: 'ellipsis',
+                                                                                                                        padding: '8px 12px',
+                                                                                                                        marginLeft: '10px'
+                                                                                                                    }}
+                                                                                                                    onClick={() => handleKycPageChange(currentKycPage + 1)}
+                                                                                                                    disabled={currentKycPage === totalKycPages()}
+                                                                                                                >
+                                                                                                                    {t("Next")}
+                                                                                                                </button>
+                                                                                                            </div>
+                                                                                                        </div>
+                                                                                                    </>
+                                                                                                ) : (
+                                                                                                    <div className="text-center p-4">
+                                                                                                        <p>
+                                                                                                            {searchTerm
+                                                                                                                ? t("No companies found matching your search")
+                                                                                                                : t("No KYC data available for the selected country")}
+                                                                                                        </p>
+                                                                                                    </div>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </Card.Body>
+                                                                                </Card>
+                                                                            </div>
+                                                                        </div>
+                                                                    ) :
                                                                         type === 'exportchemicalcomposition' ?
                                                                             (
                                                                                 <Exportchemical language={language} country={country} />
